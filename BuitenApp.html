@@ -519,7 +519,7 @@ body.order-map-busy .order-map-check,body.order-map-busy .order-status-trigger,b
 .two-col,.shop-layout{grid-template-columns:1fr;}
 }
 </style>
-<style id="theme-vars">
+<style>
     .sidebar{background:#0f766e!important;}
     .sidebar-logo span{color:#ccfbf1!important;}
     .btn-primary{background:#0f766e!important;}
@@ -623,7 +623,7 @@ body.order-map-busy .order-map-check,body.order-map-busy .order-status-trigger,b
         <p id="dateBadge">vrijdag 22 mei 2026</p>
       </div>
       <div class="topbar-right">
-        <span style="font-size:13px;color:#94a3b8;font-weight:500;">v1.0.15</span>
+        <span style="font-size:13px;color:#94a3b8;font-weight:500;">v1.0.16</span>
       </div>
     </div>
 
@@ -2269,24 +2269,6 @@ body.order-map-busy .order-map-check,body.order-map-busy .order-status-trigger,b
     </div>
 
     <div class="settings-section">
-      <h3>Thema kleur</h3>
-      <p>Kies een kleur voor de zijbalk en knoppen</p>
-      <div class="theme-swatches" id="themeSwatches"></div>
-      <div class="theme-preview" id="themePreview">
-        <div class="preview-sidebar" id="previewSidebar" style="background: rgb(15, 118, 110);">
-          <div class="preview-bar active"></div>
-          <div class="preview-bar"></div>
-          <div class="preview-bar"></div>
-          <div class="preview-bar"></div>
-        </div>
-        <div class="preview-main">
-          <div class="preview-card"></div>
-          <div class="preview-btn" id="previewBtn" style="background: rgb(15, 118, 110);"></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="settings-section">
       <h3>Algemeen</h3>
       <p>App gedrag aanpassen</p>
       <div class="toggle-row">
@@ -2685,7 +2667,7 @@ function navigate(page) {
   else if(page === 'bestellingen')  renderOrders();
   else if(page === 'bestelgeschiedenis') renderOrderHistory();
   else if(page === 'dashboard')     renderDashboard();
-  else if(page === 'instellingen')  { renderThemeSwatches(); renderKeybinds(); updateToggleUI(); }
+  else if(page === 'instellingen')  { renderKeybinds(); updateToggleUI(); }
 
   const from = document.getElementById('page-' + currentPage);
   const to   = document.getElementById('page-' + page);
@@ -4638,84 +4620,7 @@ function showToast(msg) {
 //  THEMA
 // ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?
 
-const THEMES = {
-  groen:  { naam:'Groen',  p:'#0f766e', ph:'#0d9488', pa:'#0a5e57', pl:'#ccfbf1', pbg:'#f0fdf9', r:'15,118,110' },
-  blauw:  { naam:'Blauw',  p:'#1d4ed8', ph:'#3b82f6', pa:'#1e3a8a', pl:'#dbeafe', pbg:'#eff6ff', r:'29,78,216'  },
-  paars:  { naam:'Paars',  p:'#7c3aed', ph:'#8b5cf6', pa:'#6d28d9', pl:'#ede9fe', pbg:'#f5f3ff', r:'124,58,237' },
-  rood:   { naam:'Rood',   p:'#dc2626', ph:'#ef4444', pa:'#b91c1c', pl:'#fee2e2', pbg:'#fef2f2', r:'220,38,38'  },
-  oranje: { naam:'Oranje', p:'#d97706', ph:'#f59e0b', pa:'#b45309', pl:'#fef3c7', pbg:'#fffbeb', r:'217,119,6'  },
-  grijs:  { naam:'Grijs',  p:'#475569', ph:'#64748b', pa:'#334155', pl:'#e2e8f0', pbg:'#f8fafc', r:'71,85,105'  },
-};
-
-
-let currentTheme = localStorage.getItem('buitenapp_theme') || 'groen';
-
-function _setThemeCSS(t) {
-  document.getElementById('theme-vars').textContent = `
-    .sidebar{background:${t.g || t.p}!important;}
-    .sidebar-logo span{color:${t.pl}!important;}
-    .btn-primary{background:${t.p}!important;}
-    .btn-primary:hover{background:${t.ph}!important;box-shadow:0 6px 18px rgba(${t.r},.35)!important;}
-    .btn-primary:active{background:${t.pa}!important;}
-    .stat-card.green .card-icon{background:${t.pl}!important;color:${t.p}!important;}
-    .stat-card.green::after{background:rgba(${t.r},.08)!important;}
-    .filter-tab.active{background:${t.p}!important;border-color:${t.p}!important;box-shadow:0 3px 10px rgba(${t.r},.25)!important;}
-    .qty-btn:hover{background:${t.p}!important;border-color:${t.p}!important;}
-    .btn-order{background:linear-gradient(135deg,${t.p},${t.ph})!important;}
-    .btn-order:hover:not(:disabled){box-shadow:0 10px 28px rgba(${t.r},.4)!important;}
-    .user-avatar{background:${t.pl}!important;color:${t.p}!important;}
-    .item-card.in-cart{border-color:${t.p}!important;background:linear-gradient(180deg,#fff,${t.pbg})!important;}
-    .item-card:hover{border-color:rgba(${t.r},.45)!important;box-shadow:0 12px 30px rgba(${t.r},.12)!important;}
-    .cart-badge-count{background:${t.p}!important;}
-    .cart-line-qty{color:${t.p}!important;}
-    .voorraad-item:hover{border-color:rgba(${t.r},.25)!important;box-shadow:0 3px 12px rgba(${t.r},.08)!important;}
-    .voorraad-page-card:hover{border-color:rgba(${t.r},.25)!important;}
-    .search-bar:focus-within{border-color:${t.p}!important;box-shadow:0 0 0 3px rgba(${t.r},.1)!important;}
-    .toggle-switch.on{background:${t.p}!important;}
-    .chat-btn{background:${t.p}!important;}
-    .chat-header{background:${t.p}!important;}
-    .chat-msg.user{background:${t.p}!important;}
-    .chat-send{background:${t.p}!important;}
-    .chat-send:hover{background:${t.ph}!important;}
-    .chat-input:focus{border-color:${t.p}!important;box-shadow:0 0 0 3px rgba(${t.r},.1)!important;}
-  `;
-  const sidebar = document.getElementById('previewSidebar');
-  const btn     = document.getElementById('previewBtn');
-  if (sidebar) sidebar.style.background = t.g || t.p;
-  if (btn)     btn.style.background     = t.p;
-}
-
-function applyTheme(key, save = true, ev = null) {
-  const t = THEMES[key];
-  if (!t) return;
-  if (!save) {
-    _setThemeCSS(t);
-    currentTheme = key;
-    return;
-  }
-  document.body.style.transition = 'filter .25s ease';
-  document.body.style.filter = 'brightness(.92)';
-  setTimeout(() => {
-    _setThemeCSS(t);
-    currentTheme = key;
-    localStorage.setItem('buitenapp_theme', key);
-    renderThemeSwatches();
-    document.body.style.filter = '';
-    setTimeout(() => { document.body.style.transition = ''; }, 250);
-  }, 150);
-}
-
-function renderThemeSwatches() {
-  const el = document.getElementById('themeSwatches');
-  if (!el) return;
-  el.innerHTML = Object.entries(THEMES).map(([key, t]) => `
-    <div class="theme-swatch ${currentTheme === key ? 'active' : ''}" onclick="applyTheme('${key}', true, event)">
-      <div class="swatch-circle" style="background:${t.p}">
-        <svg class="swatch-check" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" style="width:22px;height:22px"><polyline points="20 6 9 17 4 12"/></svg>
-      </div>
-      <span class="swatch-label">${t.naam}</span>
-    </div>`).join('');
-}
+// Thema: altijd groen
 
 
 // ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?ï¿½?
@@ -5130,7 +5035,7 @@ document.addEventListener('click', function(e) {
   else if(lastPage === 'bestellingen')  renderOrders();
   else if(lastPage === 'bestelgeschiedenis') renderOrderHistory();
   else if(lastPage === 'voorraad')      renderVoorraad();
-  else if(lastPage === 'instellingen')  { renderThemeSwatches(); renderKeybinds(); updateToggleUI(); }
+  else if(lastPage === 'instellingen')  { renderKeybinds(); updateToggleUI(); }
   else                                  renderDashboard();
 
   updateCartBadge();
