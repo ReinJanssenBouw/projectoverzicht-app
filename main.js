@@ -1,59 +1,147 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const { autoUpdater } = require('electron-updater');
+const path = require('path');
+const fs   = require('fs');
 
-let win;
+autoUpdater.autoDownload         = true;
+autoUpdater.autoInstallOnAppQuit = false;
 
-function createWindow() {
-  win = new BrowserWindow({
-    width: 1400,
-    height: 900,
+// ─── Just-updated vlag ───────────────────────────────────────────────────────
+
+function getFlagPath() {
+  return path.join(app.getPath('userData'), 'just-updated.flag');
+}
+function setJustUpdatedFlag() {
+  try { fs.writeFileSync(getFlagPath(), '1'); } catch {}
+}
+function consumeJustUpdatedFlag() {
+  const p = getFlagPath();
+  if (fs.existsSync(p)) {
+    try { fs.unlinkSync(p); } catch {}
+    return true;
+  }
+  return false;
+}
+
+// ─── State ───────────────────────────────────────────────────────────────────
+
+let mainWindow       = null;
+let isUpdating       = false;
+let lastUpdateStatus = null;
+let forceQuit        = false;
+
+function sendToMain(data) {
+  lastUpdateStatus = data;
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('update-btn-status', data);
+  }
+}
+
+// ─── Hoofdvenster ────────────────────────────────────────────────────────────
+
+function createMainWindow() {
+  mainWindow = new BrowserWindow({
+    width: 1400, height: 900,
     autoHideMenuBar: true,
-    icon: 'icon.ico',
+    icon: path.join(__dirname, 'icon.ico'),
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false
     }
   });
 
-  win.maximize();
-  win.loadFile('BuitenApp.html');
+  mainWindow.maximize();
+  mainWindow.loadFile(path.join(__dirname, 'BuitenApp.html'));
+
+  mainWindow.webContents.on('before-input-event', (_e, input) => {
+    if (input.key === 'F12' && input.type === 'keyDown') mainWindow.webContents.toggleDevTools();
+  });
+
+  mainWindow.once('ready-to-show', () => {
+    if (lastUpdateStatus) mainWindow.webContents.send('update-btn-status', lastUpdateStatus);
+  });
+
+  mainWindow.on('closed', () => { mainWindow = null; });
 }
 
-app.whenReady().then(() => {
-  createWindow();
-});
+// ─── IPC ─────────────────────────────────────────────────────────────────────
 
-// Renderer vraagt om update check
 ipcMain.on('check-for-update', () => {
-  autoUpdater.checkForUpdates();
+  if (!isUpdating) checkGitHubForUpdate();
 });
 
-// Renderer vraagt om installeren & herstarten
-ipcMain.on('install-update', () => {
-  autoUpdater.quitAndInstall();
+ipcMain.on('restart-for-update', () => {
+  setJustUpdatedFlag();
+  forceQuit = true;
+  autoUpdater.quitAndInstall(true, true);
 });
 
-autoUpdater.on('checking-for-update', () => {
-  win?.webContents.send('update-status', { status: 'checking' });
+// ─── GitHub polling ───────────────────────────────────────────────────────────
+
+async function checkGitHubForUpdate() {
+  const current = app.getVersion();
+  try {
+    const res = await fetch('https://api.github.com/repos/ReinJanssenBouw/projectoverzicht-app/releases/latest', {
+      headers: { 'User-Agent': 'BuitenApp' }
+    });
+
+    if (!res.ok) {
+      sendToMain({ type: 'idle', version: `BuitenApp v${current}` });
+      return;
+    }
+
+    const data   = await res.json();
+    const latest = (data.tag_name || '').replace(/^v/, '');
+
+    if (latest && latest !== current) {
+      autoUpdater.checkForUpdates().catch(err => console.error('[updater]', err));
+    } else {
+      sendToMain({ type: 'idle', version: `BuitenApp v${current}` });
+    }
+  } catch (err) {
+    console.error('[poll]', err.message);
+    sendToMain({ type: 'idle', version: `BuitenApp v${current}` });
+  }
+}
+
+// ─── Start ───────────────────────────────────────────────────────────────────
+
+app.whenReady().then(() => {
+  createMainWindow();
+
+  if (app.isPackaged) {
+    autoUpdater.checkForUpdates().catch(err => console.error('[updater]', err));
+    setInterval(() => {
+      if (!isUpdating) checkGitHubForUpdate();
+    }, 30 * 60 * 1000);
+  }
 });
+
+app.on('window-all-closed', () => app.quit());
+
+// ─── autoUpdater events ───────────────────────────────────────────────────────
 
 autoUpdater.on('update-available', (info) => {
-  win?.webContents.send('update-status', { status: 'available', version: info.version });
-  autoUpdater.downloadUpdate();
+  isUpdating = true;
+  sendToMain({ type: 'downloading', percent: 0, version: info.version });
+});
+
+autoUpdater.on('download-progress', (p) => {
+  sendToMain({ type: 'downloading', percent: Math.round(p.percent) });
+});
+
+autoUpdater.on('update-downloaded', () => {
+  isUpdating = false;
+  sendToMain({ type: 'ready' });
 });
 
 autoUpdater.on('update-not-available', () => {
-  win?.webContents.send('update-status', { status: 'not-available' });
-});
-
-autoUpdater.on('download-progress', (progress) => {
-  win?.webContents.send('update-status', { status: 'downloading', percent: Math.round(progress.percent) });
-});
-
-autoUpdater.on('update-downloaded', (info) => {
-  win?.webContents.send('update-status', { status: 'downloaded', version: info.version });
+  sendToMain({ type: 'idle', version: `BuitenApp v${app.getVersion()}` });
 });
 
 autoUpdater.on('error', (err) => {
-  win?.webContents.send('update-status', { status: 'error', message: err.message });
+  isUpdating = false;
+  sendToMain({ type: 'error', message: err.message || String(err) });
 });

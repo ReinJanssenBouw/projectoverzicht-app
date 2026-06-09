@@ -568,7 +568,7 @@ body.order-map-busy .order-map-check,body.order-map-busy .order-status-trigger,b
         <p id="dateBadge">vrijdag 22 mei 2026</p>
       </div>
       <div class="topbar-right">
-        <span style="font-size:13px;color:#94a3b8;font-weight:500;">v1.0.13</span>
+        <span style="font-size:13px;color:#94a3b8;font-weight:500;">v1.0.14</span>
       </div>
     </div>
 
@@ -5080,7 +5080,7 @@ document.addEventListener('click', function(e) {
 
   updateCartBadge();
   startLiveSharePointSync();
-  setTimeout(() => checkForUpdate(false), 2200);
+  // update-check wordt gestart vanuit main.js via electron-updater
 
   // Close modals on backdrop click
   document.getElementById('orderModal').addEventListener('click', e => { if(e.target === e.currentTarget) closeModal(); });
@@ -5095,66 +5095,58 @@ document.addEventListener('click', function(e) {
 
 // ── Auto-updater ──
 function checkForUpdate() {
-  if(typeof require === 'undefined') {
-    document.getElementById('updateStatus').textContent = 'Updates alleen beschikbaar in de geïnstalleerde app.';
+  if(!window.buitenApp) {
+    const statusEl = document.getElementById('updateStatus');
+    if(statusEl) statusEl.textContent = 'Updates alleen beschikbaar in de geïnstalleerde app.';
     return;
   }
-  const { ipcRenderer } = require('electron');
-  const updateBtn = document.getElementById('updateBtn');
-  const sidebarBtn = document.getElementById('sidebarUpdateBtn');
-  if(updateBtn) updateBtn.disabled = true;
-  if(sidebarBtn) sidebarBtn.disabled = true;
-  const statusEl = document.getElementById('updateStatus');
-  if(statusEl) statusEl.textContent = 'Controleren...';
-  ipcRenderer.send('check-for-update');
+  const updateBtn   = document.getElementById('updateBtn');
+  const sidebarBtn  = document.getElementById('sidebarUpdateBtn');
+  const sidebarText = document.getElementById('sidebarUpdateText');
+  const statusEl    = document.getElementById('updateStatus');
+  if(updateBtn)   updateBtn.disabled = true;
+  if(sidebarBtn)  sidebarBtn.disabled = true;
+  if(statusEl)    statusEl.textContent = 'Controleren...';
+  if(sidebarText) sidebarText.textContent = 'Controleren...';
+  window.buitenApp.checkForUpdate();
 }
 
 function installUpdate() {
-  if(typeof require === 'undefined') return;
-  const { ipcRenderer } = require('electron');
-  ipcRenderer.send('install-update');
+  if(window.buitenApp) window.buitenApp.restartForUpdate();
 }
 
-if(typeof require !== 'undefined') {
-  const { ipcRenderer } = require('electron');
-  ipcRenderer.on('update-status', (event, data) => {
-    const statusEl = document.getElementById('updateStatus');
-    const btn = document.getElementById('updateBtn');
-    const restartBtn = document.getElementById('restartBtn');
-    const sidebarText = document.getElementById('sidebarUpdateText');
-    const sidebarBtn = document.getElementById('sidebarUpdateBtn');
+if(window.buitenApp) {
+  window.buitenApp.onUpdateStatus((data) => {
+    const statusEl          = document.getElementById('updateStatus');
+    const btn               = document.getElementById('updateBtn');
+    const restartBtn        = document.getElementById('restartBtn');
+    const sidebarText       = document.getElementById('sidebarUpdateText');
+    const sidebarBtn        = document.getElementById('sidebarUpdateBtn');
     const sidebarRestartBtn = document.getElementById('sidebarRestartBtn');
-    switch(data.status) {
-      case 'checking':
-        if(statusEl) { statusEl.textContent = 'Controleren op updates...'; statusEl.style.color = '#64748b'; }
-        if(sidebarText) sidebarText.textContent = 'Controleren...';
-        break;
-      case 'available':
-        if(statusEl) { statusEl.textContent = `Versie ${data.version} gevonden! Downloaden...`; statusEl.style.color = '#0f766e'; }
-        if(sidebarText) sidebarText.textContent = `v${data.version} downloaden...`;
-        break;
-      case 'not-available':
-        if(statusEl) { statusEl.textContent = 'Je hebt al de nieuwste versie.'; statusEl.style.color = '#64748b'; }
+
+    switch(data.type) {
+      case 'idle':
+        if(statusEl)    { statusEl.textContent = 'Je hebt al de nieuwste versie.'; statusEl.style.color = '#64748b'; }
         if(sidebarText) sidebarText.textContent = 'Al up-to-date ✓';
-        if(btn) btn.disabled = false;
-        if(sidebarBtn) sidebarBtn.disabled = false;
+        if(btn)         btn.disabled = false;
+        if(sidebarBtn)  sidebarBtn.disabled = false;
         break;
       case 'downloading':
-        if(statusEl) { statusEl.textContent = `Downloaden... ${data.percent}%`; statusEl.style.color = '#0f766e'; }
-        if(sidebarText) sidebarText.textContent = `Downloaden... ${data.percent}%`;
+        if(statusEl)    { statusEl.textContent = data.percent > 0 ? `Downloaden... ${data.percent}%` : `Update gevonden! Downloaden...`; statusEl.style.color = '#0f766e'; }
+        if(sidebarText) sidebarText.textContent = data.percent > 0 ? `Downloaden... ${data.percent}%` : 'Update gevonden!';
         break;
-      case 'downloaded':
-        if(statusEl) { statusEl.textContent = `Versie ${data.version} klaar om te installeren.`; statusEl.style.color = '#0f766e'; }
-        if(btn) btn.disabled = false;
-        if(restartBtn) restartBtn.style.display = 'inline-block';
-        if(sidebarBtn) sidebarBtn.style.display = 'none';
+      case 'ready':
+        if(statusEl)    { statusEl.textContent = 'Update klaar om te installeren.'; statusEl.style.color = '#0f766e'; }
+        if(btn)         btn.disabled = false;
+        if(restartBtn)  restartBtn.style.display = 'inline-block';
+        if(sidebarBtn)  sidebarBtn.style.display = 'none';
         if(sidebarRestartBtn) sidebarRestartBtn.style.display = 'block';
         break;
       case 'error':
-        if(statusEl) { statusEl.textContent = `Fout: ${data.message}`; statusEl.style.color = '#ef4444'; }
+        if(statusEl)    { statusEl.textContent = `Fout: ${data.message}`; statusEl.style.color = '#ef4444'; }
         if(sidebarText) sidebarText.textContent = 'Update fout ✕';
-        if(btn) btn.disabled = false;
-        if(sidebarBtn) sidebarBtn.disabled = false;
+        if(btn)         btn.disabled = false;
+        if(sidebarBtn)  sidebarBtn.disabled = false;
         break;
     }
   });
