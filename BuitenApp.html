@@ -538,6 +538,15 @@ body.order-map-busy .order-map-check,body.order-map-busy .order-status-trigger,b
     </div>
   </nav>
   <div class="sidebar-bottom">
+    <div id="sidebarUpdateArea" style="padding:10px 16px 6px;">
+      <button id="sidebarUpdateBtn" onclick="checkForUpdate()" style="width:100%;background:rgba(255,255,255,0.12);color:#fff;border:1px solid rgba(255,255,255,0.2);padding:8px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="12 8 12 12 14 14"></polyline><path d="M3.05 11a9 9 0 1 0 .5-4.5"></path><polyline points="3 3 3 7 7 7"></polyline></svg>
+        <span id="sidebarUpdateText">Controleer op updates</span>
+      </button>
+      <button id="sidebarRestartBtn" onclick="installUpdate()" style="display:none;width:100%;margin-top:6px;background:#fff;color:#0f766e;border:none;padding:8px 12px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">
+        🔄 Herstarten &amp; installeren
+      </button>
+    </div>
     <div class="sidebar-user">
       <div class="user-avatar">B</div>
       <div>
@@ -559,7 +568,7 @@ body.order-map-busy .order-map-check,body.order-map-busy .order-status-trigger,b
         <p id="dateBadge">vrijdag 22 mei 2026</p>
       </div>
       <div class="topbar-right">
-        <span style="font-size:13px;color:#94a3b8;font-weight:500;">v1.0.12</span>
+        <span style="font-size:13px;color:#94a3b8;font-weight:500;">v1.0.13</span>
       </div>
     </div>
 
@@ -5091,8 +5100,12 @@ function checkForUpdate() {
     return;
   }
   const { ipcRenderer } = require('electron');
-  document.getElementById('updateBtn').disabled = true;
-  document.getElementById('updateStatus').textContent = 'Controleren...';
+  const updateBtn = document.getElementById('updateBtn');
+  const sidebarBtn = document.getElementById('sidebarUpdateBtn');
+  if(updateBtn) updateBtn.disabled = true;
+  if(sidebarBtn) sidebarBtn.disabled = true;
+  const statusEl = document.getElementById('updateStatus');
+  if(statusEl) statusEl.textContent = 'Controleren...';
   ipcRenderer.send('check-for-update');
 }
 
@@ -5108,35 +5121,40 @@ if(typeof require !== 'undefined') {
     const statusEl = document.getElementById('updateStatus');
     const btn = document.getElementById('updateBtn');
     const restartBtn = document.getElementById('restartBtn');
-    if(!statusEl) return;
+    const sidebarText = document.getElementById('sidebarUpdateText');
+    const sidebarBtn = document.getElementById('sidebarUpdateBtn');
+    const sidebarRestartBtn = document.getElementById('sidebarRestartBtn');
     switch(data.status) {
       case 'checking':
-        statusEl.textContent = 'Controleren op updates...';
-        statusEl.style.color = '#64748b';
+        if(statusEl) { statusEl.textContent = 'Controleren op updates...'; statusEl.style.color = '#64748b'; }
+        if(sidebarText) sidebarText.textContent = 'Controleren...';
         break;
       case 'available':
-        statusEl.textContent = `Versie ${data.version} gevonden! Downloaden...`;
-        statusEl.style.color = '#0f766e';
+        if(statusEl) { statusEl.textContent = `Versie ${data.version} gevonden! Downloaden...`; statusEl.style.color = '#0f766e'; }
+        if(sidebarText) sidebarText.textContent = `v${data.version} downloaden...`;
         break;
       case 'not-available':
-        statusEl.textContent = 'Je hebt al de nieuwste versie.';
-        statusEl.style.color = '#64748b';
-        btn.disabled = false;
+        if(statusEl) { statusEl.textContent = 'Je hebt al de nieuwste versie.'; statusEl.style.color = '#64748b'; }
+        if(sidebarText) sidebarText.textContent = 'Al up-to-date ✓';
+        if(btn) btn.disabled = false;
+        if(sidebarBtn) sidebarBtn.disabled = false;
         break;
       case 'downloading':
-        statusEl.textContent = `Downloaden... ${data.percent}%`;
-        statusEl.style.color = '#0f766e';
+        if(statusEl) { statusEl.textContent = `Downloaden... ${data.percent}%`; statusEl.style.color = '#0f766e'; }
+        if(sidebarText) sidebarText.textContent = `Downloaden... ${data.percent}%`;
         break;
       case 'downloaded':
-        statusEl.textContent = `Versie ${data.version} klaar om te installeren.`;
-        statusEl.style.color = '#0f766e';
-        btn.disabled = false;
-        restartBtn.style.display = 'inline-block';
+        if(statusEl) { statusEl.textContent = `Versie ${data.version} klaar om te installeren.`; statusEl.style.color = '#0f766e'; }
+        if(btn) btn.disabled = false;
+        if(restartBtn) restartBtn.style.display = 'inline-block';
+        if(sidebarBtn) sidebarBtn.style.display = 'none';
+        if(sidebarRestartBtn) sidebarRestartBtn.style.display = 'block';
         break;
       case 'error':
-        statusEl.textContent = `Fout: ${data.message}`;
-        statusEl.style.color = '#ef4444';
-        btn.disabled = false;
+        if(statusEl) { statusEl.textContent = `Fout: ${data.message}`; statusEl.style.color = '#ef4444'; }
+        if(sidebarText) sidebarText.textContent = 'Update fout ✕';
+        if(btn) btn.disabled = false;
+        if(sidebarBtn) sidebarBtn.disabled = false;
         break;
     }
   });
