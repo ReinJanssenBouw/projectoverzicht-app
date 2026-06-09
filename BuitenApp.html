@@ -559,7 +559,7 @@ body.order-map-busy .order-map-check,body.order-map-busy .order-status-trigger,b
         <p id="dateBadge">vrijdag 22 mei 2026</p>
       </div>
       <div class="topbar-right">
-        <span style="font-size:13px;color:#94a3b8;font-weight:500;">v1.0.11</span>
+        <span style="font-size:13px;color:#94a3b8;font-weight:500;">v1.0.12</span>
       </div>
     </div>
 
@@ -2190,6 +2190,20 @@ body.order-map-busy .order-map-check,body.order-map-busy .order-status-trigger,b
         <p>Pas de app aan naar jouw voorkeur</p>
       </div>
     </div>
+    <div class="settings-section">
+      <h3>App bijwerken</h3>
+      <p>Controleer of er een nieuwe versie beschikbaar is</p>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap;">
+        <button id="updateBtn" onclick="checkForUpdate()" style="background:#0f766e;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">
+          Controleer op updates
+        </button>
+        <span id="updateStatus" style="font-size:14px;color:#64748b;"></span>
+      </div>
+      <button id="restartBtn" onclick="installUpdate()" style="display:none;margin-top:12px;background:#0f766e;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">
+        🔄 App herstarten &amp; installeren
+      </button>
+    </div>
+
     <div class="settings-section">
       <h3>Thema kleur</h3>
       <p>Kies een kleur voor de zijbalk en knoppen</p>
@@ -5069,6 +5083,64 @@ document.addEventListener('click', function(e) {
 
   document.getElementById('settingsModal').addEventListener('click', e => { if(e.target === e.currentTarget) closeSettings(); });
 })();
+
+// ── Auto-updater ──
+function checkForUpdate() {
+  if(typeof require === 'undefined') {
+    document.getElementById('updateStatus').textContent = 'Updates alleen beschikbaar in de geïnstalleerde app.';
+    return;
+  }
+  const { ipcRenderer } = require('electron');
+  document.getElementById('updateBtn').disabled = true;
+  document.getElementById('updateStatus').textContent = 'Controleren...';
+  ipcRenderer.send('check-for-update');
+}
+
+function installUpdate() {
+  if(typeof require === 'undefined') return;
+  const { ipcRenderer } = require('electron');
+  ipcRenderer.send('install-update');
+}
+
+if(typeof require !== 'undefined') {
+  const { ipcRenderer } = require('electron');
+  ipcRenderer.on('update-status', (event, data) => {
+    const statusEl = document.getElementById('updateStatus');
+    const btn = document.getElementById('updateBtn');
+    const restartBtn = document.getElementById('restartBtn');
+    if(!statusEl) return;
+    switch(data.status) {
+      case 'checking':
+        statusEl.textContent = 'Controleren op updates...';
+        statusEl.style.color = '#64748b';
+        break;
+      case 'available':
+        statusEl.textContent = `Versie ${data.version} gevonden! Downloaden...`;
+        statusEl.style.color = '#0f766e';
+        break;
+      case 'not-available':
+        statusEl.textContent = 'Je hebt al de nieuwste versie.';
+        statusEl.style.color = '#64748b';
+        btn.disabled = false;
+        break;
+      case 'downloading':
+        statusEl.textContent = `Downloaden... ${data.percent}%`;
+        statusEl.style.color = '#0f766e';
+        break;
+      case 'downloaded':
+        statusEl.textContent = `Versie ${data.version} klaar om te installeren.`;
+        statusEl.style.color = '#0f766e';
+        btn.disabled = false;
+        restartBtn.style.display = 'inline-block';
+        break;
+      case 'error':
+        statusEl.textContent = `Fout: ${data.message}`;
+        statusEl.style.color = '#ef4444';
+        btn.disabled = false;
+        break;
+    }
+  });
+}
 </script>
 
 

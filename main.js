@@ -1,51 +1,59 @@
-const { app, BrowserWindow, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const { autoUpdater } = require('electron-updater');
 
+let win;
+
 function createWindow() {
-  const win = new BrowserWindow({
+  win = new BrowserWindow({
     width: 1400,
     height: 900,
     autoHideMenuBar: true,
-    icon: 'icon.ico'
+    icon: 'icon.ico',
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false
+    }
   });
 
   win.maximize();
   win.loadFile('BuitenApp.html');
-
-  autoUpdater.checkForUpdates();
 }
 
 app.whenReady().then(() => {
   createWindow();
 });
 
-autoUpdater.on('checking-for-update', () => {
-  console.log('Controleren op updates...');
+// Renderer vraagt om update check
+ipcMain.on('check-for-update', () => {
+  autoUpdater.checkForUpdates();
 });
 
-autoUpdater.on('update-available', () => {
-  console.log('Update gevonden, downloaden...');
+// Renderer vraagt om installeren & herstarten
+ipcMain.on('install-update', () => {
+  autoUpdater.quitAndInstall();
+});
+
+autoUpdater.on('checking-for-update', () => {
+  win?.webContents.send('update-status', { status: 'checking' });
+});
+
+autoUpdater.on('update-available', (info) => {
+  win?.webContents.send('update-status', { status: 'available', version: info.version });
   autoUpdater.downloadUpdate();
 });
 
-autoUpdater.on('update-downloaded', () => {
-  console.log('Update gedownload');
+autoUpdater.on('update-not-available', () => {
+  win?.webContents.send('update-status', { status: 'not-available' });
+});
 
-  dialog.showMessageBox({
-    type: 'info',
-    title: 'Update gereed',
-    message: 'De update is gedownload. De app wordt nu bijgewerkt.'
-  }).then(() => {
-    autoUpdater.quitAndInstall();
-  });
+autoUpdater.on('download-progress', (progress) => {
+  win?.webContents.send('update-status', { status: 'downloading', percent: Math.round(progress.percent) });
+});
+
+autoUpdater.on('update-downloaded', (info) => {
+  win?.webContents.send('update-status', { status: 'downloaded', version: info.version });
 });
 
 autoUpdater.on('error', (err) => {
-  console.log('Update fout:', err);
-
-  dialog.showMessageBox({
-    type: 'error',
-    title: 'Update fout',
-    message: err.toString()
-  });
+  win?.webContents.send('update-status', { status: 'error', message: err.message });
 });
